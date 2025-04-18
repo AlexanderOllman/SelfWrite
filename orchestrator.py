@@ -167,4 +167,30 @@ class Orchestrator:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--idea", required=True)
-    Orchestrator(parser.parse_args().idea) 
+    
+    def cleanup_containers():
+        """Stop and remove all containers in case of failure."""
+        print("⚠️ Cleaning up containers due to error...")
+        try:
+            client = docker.from_env()
+            # Get all running containers in our network
+            containers = client.containers.list(all=True)
+            for container in containers:
+                if container.name.startswith("agent_") or container.name == "dashboard":
+                    print(f"Stopping container: {container.name}")
+                    try:
+                        container.stop(timeout=5)
+                    except Exception as e:
+                        print(f"Error stopping {container.name}: {e}")
+        except Exception as e:
+            print(f"Error during cleanup: {e}")
+    
+    try:
+        Orchestrator(parser.parse_args().idea)
+    except KeyboardInterrupt:
+        print("\n⚠️ Orchestrator interrupted by user.")
+        cleanup_containers()
+    except Exception as e:
+        print(f"\n⚠️ Orchestrator failed: {e}")
+        cleanup_containers()
+        raise 
