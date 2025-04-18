@@ -5,7 +5,7 @@ import argparse, json, os, signal, sys, time, threading, uuid
 from pathlib import Path
 from typing import Dict, List
 
-import docker  # pip install docker==6.1.3
+import docker  # pip install docker
 from confluent_kafka.admin import AdminClient  # pip install confluent-kafka
 
 NETWORK = "selfcoder_net"
@@ -20,7 +20,7 @@ ROLES = [
 
 class Orchestrator:
     def __init__(self, idea: str):
-        self.client = docker.from_env()
+        self.client = docker.DockerClient(base_url='unix://var/run/docker.sock')
         self.idea = idea
         self.kafka_bootstrap = "kafka:9092"
         self._ensure_network()
@@ -42,6 +42,13 @@ class Orchestrator:
     def _run(self, **kwargs):
         kwargs.setdefault("network", NETWORK)
         kwargs.setdefault("detach", True)
+        
+        # Convert env dict to a list of "key=value" strings if present
+        if 'env' in kwargs and isinstance(kwargs['env'], dict):
+            env_dict = kwargs.pop('env')
+            env_list = [f"{k}={v}" for k, v in env_dict.items()]
+            kwargs['environment'] = env_list
+            
         return self.client.containers.run(**kwargs)
 
     def _start_infra(self):
@@ -120,9 +127,9 @@ class Orchestrator:
             return  # already exists
         except docker.errors.NotFound:
             pass
-        self._run(image=AGENT_IMAGE, name=container_name, env={
-            "AGENT_ROLE": role, "KAFKA_BOOTSTRAP": self.kafka_bootstrap
-        })
+        self._run(image=AGENT_IMAGE, name=container_name, environment=[
+            f"AGENT_ROLE={role}", f"KAFKA_BOOTSTRAP={self.kafka_bootstrap}"
+        ])
 
     # ----- monitoring -----------------------------------------------------
     def _monitor_loop(self):
@@ -145,8 +152,10 @@ class Orchestrator:
                                            if c.name.startswith(f"agent_{role}")]) + 1
                             self._run(image=AGENT_IMAGE,
                                       name=f"agent_{role}_{replica}",
-                                      env={"AGENT_ROLE": role,
-                                           "KAFKA_BOOTSTRAP": self.kafka_bootstrap})
+                                      environment=[
+                                          f"AGENT_ROLE={role}",
+                                          f"KAFKA_BOOTSTRAP={self.kafka_bootstrap}"
+                                      ])
                     time.sleep(30)
                 except Exception as e:
                     print("Monitor error:", e)
