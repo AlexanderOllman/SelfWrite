@@ -92,10 +92,28 @@ class Orchestrator:
                 print("▶ started", spec["name"])
 
     def _build_images(self):
+        print("Building agent base image...")
         base_path = Path(__file__).parent / "agents" / "base"
-        self.client.images.build(path=str(base_path), tag=AGENT_IMAGE)
+        try:
+            output = self.client.images.build(path=str(base_path), tag=AGENT_IMAGE, rm=True, pull=True)
+            for line in output[1]:
+                if 'stream' in line:
+                    print(line['stream'].strip())
+        except Exception as e:
+            print(f"Error building agent image: {e}")
+            raise
+            
+        print("Building dashboard image...")
         dash_path = Path(__file__).parent / "dashboard"
-        self.client.images.build(path=str(dash_path), tag=DASHBOARD_IMAGE)
+        try:
+            output = self.client.images.build(path=str(dash_path), tag=DASHBOARD_IMAGE, rm=True)
+            for line in output[1]:
+                if 'stream' in line:
+                    print(line['stream'].strip())
+        except Exception as e:
+            print(f"Error building dashboard image: {e}")
+            raise
+            
         print("✔ images built")
         
     def _start_dashboard(self):
