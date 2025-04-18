@@ -3,5 +3,4 @@ flask-socketio
 docker
 requests
 urllib3
-confluent-kafka
-crewai 
+confluent-kafka 
