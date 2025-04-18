@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>SelfCoder Dashboard</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+  <h1>Agent Dashboard</h1>
+  <table border="1" id="agents">
+    <thead><tr><th>Name</th><th>CPU</th><th>RAM</th><th>Launched</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <script>
+    const tbody = document.querySelector('#agents tbody');
+    const socket = io();
+    socket.on('snapshot', snap => {
+      tbody.innerHTML = '';
+      snap.agents.forEach(a => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${a.name}</td><td>${a.cpu}</td><td>${a.mem}</td><td>${a.created}</td>`;
+        tbody.appendChild(tr);
+      });
+    });
+  </script>
+</body>
+</html> 
